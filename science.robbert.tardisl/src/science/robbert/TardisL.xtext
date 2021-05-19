@@ -1,0 +1,191 @@
+grammar science.robbert.TardisL with org.eclipse.xtext.common.Terminals
+
+generate tardisL "http://www.robbert.science/TardisL"
+
+Model:
+	system=ASystem
+;
+
+VERSIONNUMBER: INT('.'INT)*;
+
+FQN: ID ("." ID)* ("." VERSIONNUMBER)? | VERSIONNUMBER;
+
+/* Declaring system variants and versions */
+ASystem:
+	'system' name=ID
+	systemVariants+=SystemVariant*
+	components+=Components?
+	configurations+=Configurations?
+	constraints+=Constraints?
+;
+
+SystemVariant:
+	'variant' name=ID
+	systemVersions+=SystemVersion*
+;
+
+SystemVersion:
+	'revision' name=VERSIONNUMBER
+;
+
+SystemVariantReference:
+	ref=[SystemVariant]
+;
+
+SystemVersionReference:
+	ref=[SystemVersion|VERSIONNUMBER]
+;
+
+/* Definitions */
+Components:
+	'components' '{'
+		compts += Component+
+	'}'
+;
+
+/* Expressions to select system variants/revisions */
+SystemCoordinateReference:
+	'@' exp=SystemCoordinateExpression
+;
+
+SystemCoordinateExpression returns XExpression:
+	SetExpression |
+	SystemCoordinateLiteral
+;
+
+SetExpression returns XExpression:
+	SetComparisonExpression | RangeExpression
+;
+
+RangeExpression returns XExpression:
+    {IntervalOperator} => left=SystemCoordinateLiteral op=("..") right=SystemCoordinateLiteral
+;
+
+SetComparisonExpression returns XExpression:
+    {TemporalOperator} => top=("<"|"<="|">="|">"|"!") tright=SystemCoordinateLiteral
+;
+
+SystemCoordinateLiteral returns XExpression:
+	({SystemCoordinateLiteral} "ALL" | value=SysCoordinateReference)
+;
+
+SysCoordinateReference:
+	 ref=[SysCoordRef|FQN]
+;
+
+SysCoordRef:
+	SystemVariant|SystemVersion
+;
+
+ComponentVariationPoint:{ComponentVariationPoint}
+	 'variationpoint' '{'
+		compVars+=ComponentVariant*
+	'}'
+;
+
+Component:
+	'component' name=ID 
+	providedInterfaces+=ProvidedInterface*
+	requiredInterfaces+=RequiredInterface*
+	compVariationPoint=ComponentVariationPoint?
+	compVersionPoint=ComponentVersionPoint?
+;
+
+ComponentVersionPoint:{ComponentVersionPoint}
+	'revisionpoint' '{'
+		compVers+=ComponentVersion*
+	'}'
+;
+
+ComponentVariant:
+	'variant' name=ID	
+	providedInterfaces+=ProvidedInterface*
+	requiredInterfaces+=RequiredInterface*	
+	compVersionPoint=ComponentVersionPoint?
+;
+
+ComponentVersion:
+	'revision' name=ID 
+	providedInterfaces+=ProvidedInterface*
+	requiredInterfaces+=RequiredInterface*
+;
+
+ProvidedInterface:
+	'providedinterface' name=ID 
+;
+
+RequiredInterface:
+	'requiredinterface' name=ID 
+;
+
+Configurations:
+	'configurations' '{'
+		configs+=Configuration+
+	'}'
+;
+
+Configuration:
+	'configuration' opt=ConfigurationOption
+;
+
+ConfigurationOption:
+	rref=RequiredInterfaceRef '-->' pref=ProvidedInterfaceRef atref=SystemCoordinateReference |
+	cref=ComponentRef atref=SystemCoordinateReference
+;
+
+ComponentRef:
+	 ref=[CompCoordRef|FQN]
+;
+
+CompCoordRef:
+	Component|ComponentVersion
+;
+
+ProvidedInterfaceRef:
+	ref=[ProvidedInterface|FQN]
+;
+
+RequiredInterfaceRef:
+	ref=[RequiredInterface|FQN]
+;
+
+Constraints:
+	'constraints' '{'
+		constraints+=Constraint+
+	'}'
+;
+
+Constraint:
+	exp=XExpression2 atref=SystemCoordinateReference
+;
+
+/* Expressions for constraints */
+XExpression2:
+	ImplExpression
+;
+
+ImplExpression returns XExpression2:
+    BooleanExpression 
+    (({FoLExpression.left=current} op=("=>")) right=BooleanExpression)*
+;
+
+BooleanExpression returns XExpression2:
+	WeakExpression 
+    (({AndOrExpression.left=current} op=("||"|"&&")) right=WeakExpression)*
+;
+
+WeakExpression returns XExpression2:
+	Atomic | Comparison
+;
+
+Comparison returns XExpression2:
+       {TemporalOperator} => (op=("<"|"<="|">="|">"|"!")) right=Atomic
+;
+
+Atomic returns XExpression2:
+    ref=ComponentRef
+;
+
+ 
+
+	

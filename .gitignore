@@ -1,0 +1,6 @@
+science.robbert.tardisl/bin/*
+science.robbert.tardisl/src-gen/*
+science.robbert.tardisl/xtend-gen/*
+science.robbert.tardisl/model/generated/*
+*.jar
+
